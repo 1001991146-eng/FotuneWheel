@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>גלגל המזל: מבני נתונים ורקורסיה - הכנה לבגרות</title>
+    
+    <!-- טעינת גופנים מותאמים לעברית ולקוד (Rubik & Fira Code) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --bg-slate: #0F172A;
+            --neon-cyan: #06B6D4;
+            --neon-purple: #A855F7;
+            --neon-amber: #F59E0B;
+            --neon-emerald: #10B981;
+            --neon-rose: #F43F5E;
+        }
+
+        body {
+            font-family: 'Rubik', sans-serif;
+            background-color: var(--bg-slate);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(6, 182, 212, 0.12), transparent 35%),
+                radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.12), transparent 35%);
+            color: #F8FAFC;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .code-font {
+            font-family: 'Fira Code', monospace;
+            direction: ltr;
+            text-align: left;
+        }
+
+        /* Glassmorphism Classes */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-modal {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(6, 182, 212, 0.35);
+            box-shadow: 0 0 40px rgba(6, 182, 212, 0.2);
+        }
+
+        /* Neon Glows & Animations */
+        .neon-btn-cyan {
+            background: linear-gradient(135deg, #06B6D4, #3B82F6);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .neon-btn-cyan:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.8);
+        }
+        .neon-btn-cyan:active:not(:disabled) {
+            transform: translateY(1px) scale(0.98);
+        }
+        .neon-btn-cyan:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+        }
+
+        .wheel-pointer {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            filter: drop-shadow(0 4px 10px rgba(245, 158, 11, 0.8));
+            transition: transform 0.1s ease;
+        }
+
+        .pointer-tick {
+            transform: translateX(-50%) rotate(-18deg) !important;
+        }
+
+        canvas#wheelCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 35px rgba(168, 85, 247, 0.35), inset 0 0 20px rgba(0,0,0,0.6);
+            border: 4px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Custom Scrollbar for Modals */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(6, 182, 212, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(6, 182, 212, 0.7);
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 0 28px rgba(16, 185, 129, 0.8); }
+        }
+        .streak-badge {
+            animation: pulseGlow 2s infinite;
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-between selection:bg-cyan-500 selection:text-white">
+
+    <!-- סרגל עליון (Header) -->
+    <header class="glass-panel sticky top-0 z-30 border-b border-slate-700/60 px-4 py-3 sm:px-8">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- לוגו וכותרת -->
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/30 text-2xl">
+                    🎡
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-l from-cyan-400 via-purple-400 to-amber-300">
+                        גלגל המזל: מדעי המחשב
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-400 font-medium">מבני נתונים, רקורסיה ויעילות • שאלון 271 (Java)</p>
+                </div>
+            </div>
+
+            <!-- מדדי ניקוד וכפתורי שליטה -->
+            <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
+                <!-- ניקוד ורצף -->
+                <div class="flex items-center gap-3 bg-slate-900/80 border border-slate-700 px-3.5 py-2 rounded-xl">
+                    <div class="text-center">
+                        <span class="block text-[11px] text-slate-400">ניקוד</span>
+                        <span id="scoreDisplay" class="text-lg sm:text-xl font-bold text-amber-400">0</span>
+                    </div>
+                    <div class="h-7 w-[1px] bg-slate-700"></div>
+                    <div class="text-center">
+                        <span class="block text-[11px] text-slate-400">רצף 🔥</span>
+                        <span id="streakDisplay" class="text-lg sm:text-xl font-bold text-emerald-400">0</span>
+                    </div>
+                </div>
+
+                <!-- כפתור השתקה / הפעלת שמע -->
+                <button id="soundToggleBtn" onclick="toggleSound()" class="p-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-cyan-400 transition" title="הפעל/השתק צלילים">
+                    <span id="soundIcon" class="text-lg">🔊</span>
+                </button>
+
+                <!-- כפתור תצוגת מורה -->
+                <button onclick="toggleTeacherDashboard()" class="px-3.5 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-200 text-xs sm:text-sm font-bold flex items-center gap-2 transition">
+                    <span>📊</span>
+                    <span>תצוגת מורה / דוח ביצועים</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- תוכן מרכזי (Main Game Area) -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-6 sm:py-10 flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12">
+        
+        <!-- צד ימין: גלגל המזל וכפתור הסיבוב -->
+        <div class="w-full lg:w-7/12 flex flex-col items-center">
+            <div class="wheel-container mb-6">
+                <!-- מחוג הגלגל -->
+                <div id="wheelPointer" class="wheel-pointer">
+                    <svg width="42" height="48" viewBox="0 0 42 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 48L2.81347 12C1.27368 8.9519 3.48935 5.33333 6.90683 5.33333H35.0932C38.5106 5.33333 40.7263 8.9519 39.1865 12L21 48Z" fill="#F59E0B"/>
+                        <path d="M21 42L6.5 13H35.5L21 42Z" fill="#FBBF24"/>
+                        <circle cx="21" cy="14" r="5" fill="#0F172A"/>
+                    </svg>
+                </div>
+                
+                <!-- קנבס הגלגל -->
+                <canvas id="wheelCanvas"></canvas>
+                
+                <!-- כפתור מרכזי דקורטיבי על הגלגל -->
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-slate-900 border-4 border-amber-400 shadow-xl flex items-center justify-center pointer-events-none z-10">
+                    <span class="text-xl font-black text-amber-400">CS</span>
+                </div>
+            </div>
+
+            <!-- כפתור סיבוב ראשי -->
+            <button id="spinBtn" onclick="spinWheel()" class="neon-btn-cyan text-white font-black text-xl sm:text-2xl px-10 py-4 rounded-2xl tracking-wide flex items-center gap-3 cursor-pointer">
+                <span>🎯</span>
+                <span>סובב את הגלגל!</span>
+            </button>
+            <p id="statusHint" class="mt-3 text-sm text-slate-400 text-center">
+                לחצו על הכפתור כדי להגריל נושא מתוך תוכנית הלימודים לבגרות
+            </p>
+        </div>
+
+        <!-- צד שמאל: מקרא קטגוריות והתקדמות אישית -->
+        <div class="w-full lg:w-5/12 flex flex-col gap-4">
+            <div class="glass-panel rounded-2xl p-5 sm:p-6">
+                <h2 class="text-lg font-bold text-cyan-300 mb-3 flex items-center gap-2">
+                    <span>📚</span>
+                    <span>נושאי הבגרות בגלגל (שאלון 271)</span>
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 text-sm">
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-cyan-500/30">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-3.5 h-3.5 rounded-full bg-cyan-500 inline-block"></span>
+                            <span class="font-semibold">תור (Queue FIFO)</span>
+                        </div>
+                        <span id="stat-queue" class="text-xs text-slate-400">0/0 הצלחות</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-purple-500/30">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-3.5 h-3.5 rounded-full bg-purple-500 inline-block"></span>
+                            <span class="font-semibold">מחסנית (Stack LIFO)</span>
+                        </div>
+                        <span id="stat-stack" class="text-xs text-slate-400">0/0 הצלחות</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-rose-500/30">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-3.5 h-3.5 rounded-full bg-rose-500 inline-block"></span>
+                            <span class="font-semibold">רקורסיה ותנאי עצירה</span>
+                        </div>
+                        <span id="stat-recursion" class="text-xs text-slate-400">0/0 הצלחות</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-emerald-500/30">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block"></span>
+                            <span class="font-semibold">סיבוכיות (Big-O)</span>
+                        </div>
+                        <span id="stat-bigo" class="text-xs text-slate-400">0/0 הצלחות</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-blue-500/30">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-3.5 h-3.5 rounded-full bg-blue-500 inline-block"></span>
+                            <span class="font-semibold">מעקב קוד (Code Tracing)</span>
+                        </div>
+                        <span id="stat-tracing" class="text-xs text-slate-400">0/0 הצלחות</span>
+                    </div>
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-amber-500/40">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-3.5 h-3.5 rounded-full bg-amber-500 inline-block"></span>
+                            <span class="font-semibold text-amber-300">בונוס מסתורי (ניקוד כפול!)</span>
+                        </div>
+                        <span id="stat-bonus" class="text-xs text-amber-400/80">x2 נקודות</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- כרטיס טיפ לבגרות -->
+            <div class="glass-panel rounded-2xl p-4 border-r-4 border-amber-400 bg-amber-950/20">
+                <h3 class="text-sm font-bold text-amber-300 mb-1">💡 טיפ זהב לבגרות:</h3>
+                <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    בשאלות מעקב על <strong>מחסנית</strong> או <strong>תור</strong>, לעולם אל תנחשו בראש! שרטטו טבלת מעקב מסודרת ושימו לב האם הפעולה משנה את המבנה המקורי או משחזרת אותו בסיום.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- מודאל שאלה ומשוב מעקב קוד (Question & Code Trace Modal) -->
+    <div id="questionModal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+        <div class="glass-modal w-full max-w-3xl rounded-3xl p-5 sm:p-8 my-auto relative border border-cyan-500/40">
+            
+            <!-- כותרת קטגוריה וניקוד -->
+            <div class="flex items-center justify-between gap-2 pb-4 border-b border-slate-700/80">
+                <div class="flex items-center gap-2.5">
+                    <span id="modalCategoryBadge" class="px-3.5 py-1 rounded-full text-xs sm:text-sm font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                        קטגוריה
+                    </span>
+                    <span id="modalPointsBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        +100 נקודות
+                    </span>
+                </div>
+                <span class="text-xs text-slate-400">שאלון 271 • Java</span>
+            </div>
+
+            <!-- גוף השאלה -->
+            <div class="mt-5">
+                <h3 id="questionText" class="text-base sm:text-lg font-bold text-white leading-relaxed mb-4">
+                    טקסט השאלה יופיע כאן...
+                </h3>
+
+                <!-- בלוק קוד (אם קיים בשאלה) -->
+                <div id="codeBlockContainer" class="hidden mb-5 rounded-2xl bg-slate-950 border border-slate-800 p-4 overflow-x-auto shadow-inner">
+                    <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-800/80">
+                        <span class="text-[11px] text-slate-400 font-mono">Java (Bagrut API)</span>
+                        <div class="flex gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500/70"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500/70"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/70"></span>
+                        </div>
+                    </div>
+                    <pre id="questionCode" class="code-font text-xs sm:text-sm text-cyan-200 leading-relaxed"></pre>
+                </div>
+
+                <!-- 4 אפשרויות תשובה -->
+                <div id="optionsContainer" class="grid grid-cols-1 gap-3">
+                    <!-- יוזרק דינמית -->
+                </div>
+            </div>
+
+            <!-- אזור משוב וטבלת מעקב (מוצג לאחר בחירת תשובה) -->
+            <div id="feedbackSection" class="hidden mt-6 pt-5 border-t border-slate-700/80 animate-fade-in">
+                <div id="feedbackBanner" class="p-4 rounded-2xl mb-4 flex items-center gap-3">
+                    <span id="feedbackIcon" class="text-2xl">✅</span>
+                    <div>
+                        <h4 id="feedbackTitle" class="font-bold text-base sm:text-lg">כל הכבוד! תשובה נכונה</h4>
+                        <p id="feedbackSubtitle" class="text-xs sm:text-sm opacity-90">הסבר קצר</p>
+                    </div>
+                </div>
+
+                <!-- טבלת מעקב / הסבר מעמיק (Code Trace) -->
+                <div class="bg-slate-900/90 border border-slate-700 rounded-2xl p-4 sm:p-5">
+                    <h5 class="text-sm font-bold text-cyan-400 mb-2.5 flex items-center gap-2">
+                        <span>🔍</span>
+                        <span>מעקב הרצה צעד-אחר-צעד (Code Trace):</span>
+                    </h5>
+                    <div id="codeTraceContent" class="text-xs sm:text-sm text-slate-200 space-y-2 leading-relaxed">
+                        <!-- יוזרק דינמית -->
+                    </div>
+                </div>
+
+                <!-- כפתור המשך -->
+                <div class="mt-6 flex justify-end">
+                    <button onclick="closeQuestionModal()" class="neon-btn-cyan text-white font-bold px-8 py-3 rounded-xl text-base flex items-center gap-2">
+                        <span>המשך לסיבוב הבא</span>
+                        <span>⬅️</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל תצוגת מורה / דוח ביצועים (Teacher Dashboard Modal) -->
+    <div id="teacherModal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+        <div class="glass-modal w-full max-w-4xl rounded-3xl p-5 sm:p-8 my-auto border border-purple-500/40">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-700">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">👩‍🏫</span>
+                    <div>
+                        <h2 class="text-xl sm:text-2xl font-black text-purple-300">תצוגת מורה ודוח ביצועים פדגוגי</h2>
+                        <p class="text-xs text-slate-400">הערכה מעצבת (Formative Assessment) • שאלון 271</p>
+                    </div>
+                </div>
+                <button onclick="toggleTeacherDashboard()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold">
+                    ✕ סגור
+                </button>
+            </div>
+
+            <!-- מדדים כיתתיים / אישיים בזמן אמת -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-6">
+                <div class="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl text-center">
+                    <span class="text-xs text-slate-400 block">שאלות שנענו</span>
+                    <span id="td-total" class="text-2xl font-black text-cyan-400 mt-1 block">0</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl text-center">
+                    <span class="text-xs text-slate-400 block">אחוז הצלחה</span>
+                    <span id="td-accuracy" class="text-2xl font-black text-emerald-400 mt-1 block">0%</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl text-center">
+                    <span class="text-xs text-slate-400 block">נושא חזק</span>
+                    <span id="td-strongest" class="text-base sm:text-lg font-bold text-amber-400 mt-1 block">-</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl text-center">
+                    <span class="text-xs text-slate-400 block">מוקד לחיזוק</span>
+                    <span id="td-weakest" class="text-base sm:text-lg font-bold text-rose-400 mt-1 block">-</span>
+                </div>
+            </div>
+
+            <!-- שגיאות תפיסתיות נפוצות (Common Misconceptions) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="bg-slate-900/70 border border-rose-500/30 rounded-2xl p-4">
+                    <h3 class="text-sm font-bold text-rose-300 mb-2 flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span>שגיאות תפיסתיות נפוצות בבגרות (Misconceptions):</span>
+                    </h3>
+                    <ul class="text-xs text-slate-300 space-y-2 list-disc list-inside leading-relaxed">
+                        <li><strong>הרס מבנה נתונים (Queue/Stack):</strong> תלמידים סורקים תור או מחסנית באמצעות <code class="text-cyan-300">remove()</code> / <code class="text-cyan-300">pop()</code> ושוכחים לגבות ולשחזר את האיברים בסיום.</li>
+                        <li><strong>רקורסיה אינסופית (StackOverflow):</strong> חוסר במקרה בסיס (Base Case) או קריאה רקורסיבית שאינה מקטינה את הבעיה לעבר תנאי העצירה.</li>
+                        <li><strong>בלבול בסיבוכיות:</strong> זיהוי שגוי של לולאה החוצה קלט בכל צעד (<code class="text-cyan-300">i *= 2</code>) כ-<code class="text-emerald-300">O(n)</code> במקום <code class="text-emerald-300">O(log n)</code>.</li>
+                    </ul>
+                </div>
+
+                <!-- הערות פדגוגיות UDL ו-SAMR -->
+                <div class="bg-slate-900/70 border border-cyan-500/30 rounded-2xl p-4">
+                    <h3 class="text-sm font-bold text-cyan-300 mb-2 flex items-center gap-2">
+                        <span>🎓</span>
+                        <span>עיצוב אוניברסלי ללמידה (UDL) ומודל SAMR:</span>
+                    </h3>
+                    <ul class="text-xs text-slate-300 space-y-2 leading-relaxed">
+                        <li><strong>UDL - ריבוי אופני ייצוג:</strong> שילוב של קוד תחבירי (Java), המחשה חזותית של מחסנית הקריאות/תור, ומשוב קולי מיידי לתמיכה בלומדים מגוונים.</li>
+                        <li><strong>UDL - מעורבות (Engagement):</strong> אלמנט ההגרלה והרצף (Streak) מפחית חרדת מבחנים והופך תרגול בגרות למשחק חקר.</li>
+                        <li><strong>SAMR - רמת Modification (שינוי מהותי):</strong> הכלי אינו מסתפק בבדיקת תשובה נכונה/שגויה, אלא מייצר <em>טבלת מעקב (Code Trace)</em> דינמית לכל שגיאה בזמן אמת.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-3 border-t border-slate-800">
+                <button onclick="resetStats()" class="px-4 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold border border-rose-500/40 transition">
+                    איפוס נתוני סשן
+                </button>
+                <button onclick="toggleTeacherDashboard()" class="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold transition">
+                    חזרה למשחק
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- פוטר (Footer) -->
+    <footer class="text-center py-4 text-xs text-slate-500 border-t border-slate-800/60">
+        פותח ככלי הערכה מעצבת להוראת מדעי המחשב (Java • שאלון 271) | מבוסס Web Audio API & Canvas
+    </footer>
+
+    <script>
+        // ============================================================================
+        // 1. מנוע סאונד רטרו-סינתיסייזר מבוסס Web Audio API (ללא קבצים חיצוניים)
+        // ============================================================================
+        let audioCtx = null;
+        let isSoundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleSound() {
+            isSoundEnabled = !isSoundEnabled;
+            document.getElementById('soundIcon').textContent = isSoundEnabled ? '🔊' : '🔇';
+        }
+
+        // צליל נקישה (Tick) בזמן סיבוב הגלגל
+        function playTickSound(pitchMultiplier = 1) {
+            if (!isSoundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(520 * pitchMultiplier, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(140, audioCtx.currentTime + 0.045);
+
+                gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.045);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+            } catch (e) { /* התעלמות משגיאות דפדפן לפני אינטראקציה */ }
+        }
+
+        // אקורד ניצחון (Winning Chime)
+        function playWinSound() {
+            if (!isSoundEnabled) return;
+            try {
+                initAudio();
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    const startTime = audioCtx.currentTime + idx * 0.08;
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    gain.gain.setValueAtTime(0.001, startTime);
+                    gain.gain.linearRampToValueAtTime(0.2, startTime + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.46);
+                });
+            } catch (e) {}
+        }
+
+        // צליל שגיאה / באזז (Error Buzz)
+        function playErrorSound() {
+            if (!isSoundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.35);
+
+                gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.36);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.37);
+            } catch (e) {}
+        }
+
+        // צליל קונפטי (Confetti Sweep)
+        function playConfettiSweep() {
+            if (!isSoundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.25);
+
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.26);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.27);
+            } catch (e) {}
+        }
+
+        // ============================================================================
+        // 2. מאגר השאלות המותאם לתוכנית הלימודים לבגרות במדעי המחשב (Java - שאלון 271)
+        // ============================================================================
+        const categories = [
+            { id: 'queue', label: 'תור (FIFO)', color: '#06B6D4', textColor: '#0F172A' },
+            { id: 'stack', label: 'מחסנית (LIFO)', color: '#A855F7', textColor: '#FFFFFF' },
+            { id: 'recursion', label: 'רקורסיה ובסיס', color: '#F43F5E', textColor: '#FFFFFF' },
+            { id: 'bigo', label: 'סיבוכיות Big-O', color: '#10B981', textColor: '#0F172A' },
+            { id: 'tracing', label: 'מעקב קוד', color: '#3B82F6', textColor: '#FFFFFF' },
+            { id: 'bonus', label: 'בונוס מסתורי!', color: '#F59E0B', textColor: '#0F172A' }
+        ];
+
+        const questionBank = {
+            queue: [
+                {
+                    question: "נתון קטע הקוד הבא המשתמש בממשק תור (Queue) של חוברת הבגרות. מה יודפס בסיום הרצת הקוד?",
+                    code: `Queue<Integer> q = new Queue<Integer>();
+q.insert(10);
+q.insert(20);
+q.insert(30);
+int x = q.remove();
+q.insert(x + 5);
+q.insert(q.head());
+q.remove();
+System.out.println(q.head());`,
+                    options: [
+                        "30",
+                        "20",
+                        "15",
+                        "10"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. לאחר שלוש פעולות <code>insert</code>, התור מכיל (משמאל לימין - ראש לזנב): <strong>[10, 20, 30]</strong>.",
+                        "2. <code>int x = q.remove()</code>: שולף את האיבר הראשון (FIFO) שהוא <strong>10</strong>. התור כעת: <strong>[20, 30]</strong>.",
+                        "3. <code>q.insert(x + 5)</code>: מכניס לזנב התור את 15. התור כעת: <strong>[20, 30, 15]</strong>.",
+                        "4. <code>q.insert(q.head())</code>: הפעולה <code>head()</code> מציצה לראש (20) <strong>מבלי להסירו</strong>, ומכניסה 20 לזנב: <strong>[20, 30, 15, 20]</strong>.",
+                        "5. <code>q.remove()</code>: מסיר את הראש הנוכחי (20). התור כעת: <strong>[30, 15, 20]</strong>.",
+                        "6. <code>System.out.println(q.head())</code>: מציג את ראש התור החדש שהוא <strong>30</strong>."
+                    ]
+                },
+                {
+                    question: "תלמיד כתב פעולה הבודקת האם המספר num נמצא בתור q. מדוע המימוש הבא שגוי מבחינת עקרונות הבגרות?",
+                    code: `public static boolean isExist(Queue<Integer> q, int num) {
+    while (!q.isEmpty()) {
+        if (q.remove() == num)
+            return true;
+    }
+    return false;
+}`,
+                    options: [
+                        "הפעולה הורסת את התור המקורי q ואינה משחזרת אותו",
+                        "הפעולה תיכנס ללולאה אינסופית אם num לא נמצא",
+                        "אסור להשתמש ב-remove() בתוך תנאי if",
+                        "הפעולה מחזירה תמיד false כי q.head() לא עודכן"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. תור הוא מבנה נתונים מופשט (ADT) המועבר לפעולה כהפניה (Reference).",
+                        "2. בכל איטרציה של הלולאה, <code>q.remove()</code> שולף איבר לצמיתות.",
+                        "3. גם אם האיבר נמצא (ומחזירים <code>true</code> באמצע) וגם אם לא, התור המקורי נותר <strong>ריק או חלקי</strong>.",
+                        "4. <strong>הפתרון הנכון בבגרות:</strong> העברת כל האיברים לתור עזר <code>temp</code> תוך שמירת דגל בוליאני <code>found</code>, והחזרת כל האיברים מ-<code>temp</code> חזרה ל-<code>q</code> בסיום הלולאה."
+                    ]
+                },
+                {
+                    question: "מהי התכונה המרכזית המאפיינת מבנה נתונים מסוג תור (Queue)?",
+                    code: null,
+                    options: [
+                        "FIFO - הראשון שנכנס הוא הראשון שיוצא",
+                        "LIFO - האחרון שנכנס הוא הראשון שיוצא",
+                        "גישה ישירה לכל איבר לפי אינדקס בזמן O(1)",
+                        "שמירת האיברים בסדר ממוין מהקטן לגדול באופן אוטומטי"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. תור פועל בשיטת <strong>FIFO (First-In, First-Out)</strong>, בדומה לתור בסופרמרקט.",
+                        "2. הכנסה מתבצעת תמיד לסוף התור (זנב) באמצעות <code>q.insert(x)</code>.",
+                        "3. שליפה והצצה מתבצעות תמיד מראש התור באמצעות <code>q.remove()</code> ו-<code>q.head()</code>."
+                    ]
+                }
+            ],
+            stack: [
+                {
+                    question: "נתונה מחסנית שלמים s שאליה הוכנסו לפי הסדר המספרים: 4, 8, 2, 9 (כך ש-9 הוא בראש המחסנית). מה יהיה הפלט של קטע הקוד הבא?",
+                    code: `Stack<Integer> temp = new Stack<Integer>();
+while (!s.isEmpty()) {
+    int val = s.pop();
+    if (val % 2 == 0)
+        temp.push(val);
+}
+System.out.println(temp.top());`,
+                    options: [
+                        "4",
+                        "2",
+                        "8",
+                        "9"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. מצב התחלתי של <code>s</code> (מלמעלה למטה): <strong>[9, 2, 8, 4]</strong>.",
+                        "2. איטרציה 1: <code>val = 9</code> (אי-זוגי) -> לא נכנס ל-<code>temp</code>.",
+                        "3. איטרציה 2: <code>val = 2</code> (זוגי) -> נדחף ל-<code>temp</code>. כעת <code>temp</code>: <strong>[2]</strong>.",
+                        "4. איטרציה 3: <code>val = 8</code> (זוגי) -> נדחף לראש <code>temp</code>. כעת <code>temp</code>: <strong>[8, 2]</strong>.",
+                        "5. איטרציה 4: <code>val = 4</code> (זוגי) -> נדחף לראש <code>temp</code>. כעת <code>temp</code>: <strong>[4, 8, 2]</strong>.",
+                        "6. <code>temp.top()</code> מציץ לראש המחסנית ומדפיס <strong>4</strong> (האיבר הזוגי הראשון שנכנס ל-s הפך לאחרון שנכנס ל-temp!)."
+                    ]
+                },
+                {
+                    question: "מה תבצע הפעולה הרקורסיבית הבאה המקבלת מחסנית stk של מספרים שלמים?",
+                    code: `public static void secret(Stack<Integer> stk) {
+    if (!stk.isEmpty()) {
+        int x = stk.pop();
+        secret(stk);
+        System.out.print(x + " ");
+        stk.push(x);
+    }
+}`,
+                    options: [
+                        "תדפיס את איברי המחסנית מהתחתית לראש ותשמור על המחסנית ללא שינוי",
+                        "תדפיס את איברי המחסנית מהראש לתחתית ותרוקן אותה",
+                        "תהפוך את סדר האיברים במחסנית המקורית לצמיתות",
+                        "תדפיס רק את האיבר התחתון ביותר במחסנית"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. בשלב הירידה ברקורסיה: הפעולה שולפת כל איבר (<code>x = stk.pop()</code>) ושומרת אותו בזיכרון המקומי של הקריאה.",
+                        "2. רק לאחר שהמחסנית מתרוקנת ומגיעים למקרה הבסיס, מתחילה החזרה מהרקורסיה (Unwinding).",
+                        "3. בחזרה, הקריאה העמוקה ביותר (ששמרה את <strong>תחתית המחסנית</strong>) מדפיסה ראשונה ודוחפת את <code>x</code> בחזרה.",
+                        "4. התוצאה: הדפסה מהתחתית לראש, ושחזור מלא של סדר המחסנית המקורית!"
+                    ]
+                }
+            ],
+            recursion: [
+                {
+                    question: "התבוננו בפעולה הרקורסיבית הבאה לחישוב סכום מספרים. מדוע הרצתה תגרום לשגיאת StackOverflowError?",
+                    code: `public static int sumDown(int n) {
+    if (n == 0)
+        return 0;
+    return n + sumDown(n - 2);
+}`,
+                    options: [
+                        "עבור מספר אי-זוגי חיובי (כמו n=5), הקריאה תדלג מעל 0 ותמשיך למספרים שליליים עד קריסה",
+                        "חסרה פקודת System.out.println בתוך הפעולה",
+                        "לא ניתן לחבר n עם קריאה רקורסיבית באותה שורה",
+                        "תנאי העצירה צריך להיות n == 1 בלבד"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. נבצע מעקב עבור קלט אי-זוגי, למשל <code>sumDown(5)</code>:",
+                        "2. קריאות: <code>sumDown(5) -> sumDown(3) -> sumDown(1) -> sumDown(-1) -> sumDown(-3)...</code>",
+                        "3. מכיוון שתנאי העצירה בודק שוויון מדויק (<code>n == 0</code>), המספר לעולם לא שווה ל-0 ומתרחק ממנו.",
+                        "4. מחסנית הקריאות (Call Stack) מתמלאת עד שמתרחשת קריסת <strong>StackOverflowError</strong>. תיקון נכון: <code>if (n <= 0) return 0;</code>."
+                    ]
+                },
+                {
+                    question: "מה תחזיר הפעולה הרקורסיבית הבאה עבור הקריאה mystery(4753)?",
+                    code: `public static int mystery(int n) {
+    if (n < 10)
+        return n;
+    int last = n % 10;
+    int rest = mystery(n / 10);
+    if (last > rest)
+        return last;
+    return rest;
+}`,
+                    options: [
+                        "7 (הספרה הגדולה ביותר במספר)",
+                        "4 (הספרה השמאלית ביותר)",
+                        "19 (סכום הספרות של המספר)",
+                        "3 (ספרת האחדות של המספר)"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. <code>mystery(4753)</code>: <code>last = 3</code>, קורא ל-<code>mystery(475)</code>.",
+                        "2. <code>mystery(475)</code>: <code>last = 5</code>, קורא ל-<code>mystery(47)</code>.",
+                        "3. <code>mystery(47)</code>: <code>last = 7</code>, קורא ל-<code>mystery(4)</code>.",
+                        "4. <code>mystery(4)</code>: מקרה בסיס (<code>4 < 10</code>) -> מחזיר <strong>4</strong>.",
+                        "5. חזרה ל-<code>47</code>: משווה <code>last=7</code> מול <code>rest=4</code> -> מחזיר <strong>7</strong>.",
+                        "6. חזרה ל-<code>475</code>: משווה <code>5</code> מול <code>7</code> -> מחזיר <strong>7</strong>. חזרה ל-<code>4753</code>: משווה <code>3</code> מול <code>7</code> -> מחזיר <strong>7</strong>."
+                    ]
+                }
+            ],
+            bigo: [
+                {
+                    question: "מהי סיבוכיות זמן הריצה (Big-O) של קטע הקוד הבא כפונקציה של n?",
+                    code: `int sum = 0;
+for (int i = 1; i <= n; i++) {
+    for (int j = 1; j <= 1000; j++) {
+        sum += i * j;
+    }
+}`,
+                    options: [
+                        "O(n)",
+                        "O(n²)",
+                        "O(1)",
+                        "O(n log n)"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. הלולאה החיצונית רצה <code>n</code> פעמים (תלויה בגודל הקלט).",
+                        "2. הלולאה הפנימית רצה <strong>1,000 פעמים בדיוק</strong> ללא תלות ב-<code>n</code> (זהו מספר קבוע).",
+                        "3. סך הפעולות הוא <code>1000 * n</code>.",
+                        "4. בניתוח סיבוכיות אסימפטוטי (Big-O) מתעלמים ממקדמים קבועים, ולכן הסיבוכיות היא <strong>O(n)</strong> (לינארית)."
+                    ]
+                },
+                {
+                    question: "מהי סיבוכיות זמן הריצה של הפעולה הבאה כפונקציה של n?",
+                    code: `public static void algo(int n) {
+    int i = n;
+    while (i > 1) {
+        System.out.println(i);
+        i = i / 2;
+    }
+}`,
+                    options: [
+                        "O(log n)",
+                        "O(n)",
+                        "O(n / 2)",
+                        "O(1)"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. בכל איטרציה של הלולאה, ערכו של המשתנה <code>i</code> נחצה ב-2 (<code>i = i / 2</code>).",
+                        "2. מספר הפעמים שניתן לחלק מספר <code>n</code> ב-2 עד שמגיעים ל-1 הוא כמספר החזקות של 2 ב-<code>n</code>.",
+                        "3. הגדרה מתמטית זו היא בדיוק לוגריתם בבסיס 2: <strong>O(log₂ n)</strong>, ובקיצור <strong>O(log n)</strong>."
+                    ]
+                },
+                {
+                    question: "נתונה רשימה מקושרת (Node) באורך n ללא מצביע לזנב (tail). מהי סיבוכיות הוספת חוליה חדשה לסוף הרשימה?",
+                    code: null,
+                    options: [
+                        "O(n) - יש לסרוק את כל הרשימה מהראש כדי להגיע לחוליה האחרונה",
+                        "O(1) - פעולת setNext מתבצעת בצעד אחד",
+                        "O(n²) - נדרשות שתי לולאות מקוננות",
+                        "O(log n) - באמצעות חיפוש בינארי ברשימה"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. כאשר מחזיקים רק הפניה לראש הרשימה (<code>head</code>), אין גישה ישירה לסוף.",
+                        "2. יש לקדם מצביע עזר <code>pos</code> בלולאה (<code>while (pos.getNext() != null)</code>) לאורך כל <code>n</code> החוליות.",
+                        "3. לכן הסיבוכיות היא לינארית: <strong>O(n)</strong> (לעומת O(1) אם שומרים מצביע <code>tail</code>)."
+                    ]
+                }
+            ],
+            tracing: [
+                {
+                    question: "עקבו אחר הפעולה המקבלת שרשרת חוליות head: 5 -> 12 -> 7 -> 4 -> null. מה תחזיר הפעולה?",
+                    code: `public static int traceList(Node<Integer> head) {
+    int res = 0;
+    Node<Integer> pos = head;
+    while (pos != null && pos.hasNext()) {
+        res += pos.getValue();
+        pos = pos.getNext().getNext();
+    }
+    return res;
+}`,
+                    options: [
+                        "12",
+                        "16",
+                        "28",
+                        "NullPointerException (שגיאת ריצה)"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. <strong>התחלה:</strong> <code>res = 0</code>, <code>pos</code> מצביע לחוליה <strong>5</strong>.",
+                        "2. <strong>איטרציה 1:</strong> <code>pos != null</code> (אמת) וגם <code>pos.hasNext()</code> (אמת, יש 12). <code>res = 0 + 5 = 5</code>. <code>pos</code> קופץ 2 צעדים לחוליה <strong>7</strong>.",
+                        "3. <strong>איטרציה 2:</strong> <code>pos != null</code> (אמת) וגם <code>pos.hasNext()</code> (אמת, יש 4). <code>res = 5 + 7 = 12</code>. <code>pos</code> קופץ 2 צעדים ל-<code>null</code>.",
+                        "4. <strong>סיום:</strong> התנאי <code>pos != null</code> נכשל (false) -> הלולאה נעצרת בבטחה ומחזירה <strong>12</strong>."
+                    ]
+                },
+                {
+                    question: "נתון קטע קוד המשלב מחסנית ותור. אם התור q מכיל [1, 2, 3] (1 בראש), מה יהיה תוכן התור q בסיום?",
+                    code: `Stack<Integer> s = new Stack<Integer>();
+while (!q.isEmpty())
+    s.push(q.remove());
+while (!s.isEmpty())
+    q.insert(s.pop());`,
+                    options: [
+                        "[3, 2, 1] (3 בראש - התור התהפך)",
+                        "[1, 2, 3] (1 בראש - ללא שינוי)",
+                        "[] (התור יישאר ריק)",
+                        "[3, 1, 2]"
+                    ],
+                    correctIndex: 0,
+                    traceSteps: [
+                        "1. הלולאה הראשונה מוציאה איברים מראש התור (1, 2, 3) ודוחפת למחסנית <code>s</code>.",
+                        "2. מצב המחסנית <code>s</code> בסיום הלולאה הראשונה (מלמעלה למטה): <strong>[3, 2, 1]</strong>.",
+                        "3. הלולאה השנייה שולפת מראש המחסנית (LIFO: קודם 3, אחר כך 2, ולבסוף 1) ומכניסה לתור <code>q</code>.",
+                        "4. התור החדש מכיל כעת: <strong>[3, 2, 1]</strong> (3 בראש). זהו האלגוריתם הקלאסי להיפוך תור!"
+                    ]
+                }
+            ]
+        };
+
+        // ============================================================================
+        // 3. ניהול מצב המשחק (Game State) וסטטיסטיקות מורה
+        // ============================================================================
+        let state = {
+            score: 0,
+            streak: 0,
+            isSpinning: false,
+            currentRotation: 0,
+            activeCategory: null,
+            activeQuestion: null,
+            isBonusTurn: false,
+            usedQuestionIndices: { queue: [], stack: [], recursion: [], bigo: [], tracing: [] },
+            stats: {
+                queue: { correct: 0, total: 0 },
+                stack: { correct: 0, total: 0 },
+                recursion: { correct: 0, total: 0 },
+                bigo: { correct: 0, total: 0 },
+                tracing: { correct: 0, total: 0 }
+            }
+        };
+
+        // ============================================================================
+        // 4. ציור והנפשת גלגל המזל (HTML5 Canvas & Physics Deceleration)
+        // ============================================================================
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const numSectors = categories.length;
+        const arcSize = (2 * Math.PI) / numSectors;
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const size = container.clientWidth;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            ctx.scale(dpr, dpr);
+            drawWheel(state.currentRotation);
+        }
+
+        function drawWheel(rotationAngle) {
+            const size = canvas.parentElement.clientWidth;
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = size / 2 - 6;
+
+            ctx.clearRect(0, 0, size, size);
+
+            for (let i = 0; i < numSectors; i++) {
+                const startAngle = rotationAngle + i * arcSize;
+                const endAngle = startAngle + arcSize;
+
+                // ציור הגזרה
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = categories[i].color;
+                ctx.fill();
+
+                // קו הפרדה זוהר בין גזרות
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#0F172A';
+                ctx.stroke();
+
+                // ציור טקסט הקטגוריה
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + arcSize / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = categories[i].textColor;
+                const fontSize = Math.max(12, Math.floor(size / 27));
+                ctx.font = `bold ${fontSize}px Rubik, sans-serif`;
+                ctx.fillText(categories[i].label, radius - 22, 5);
+                ctx.restore();
+            }
+
+            // טבעת חיצונית פנימית להצללה
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.stroke();
+        }
+
+        function spinWheel() {
+            if (state.isSpinning) return;
+            initAudio();
+            state.isSpinning = true;
+
+            const spinBtn = document.getElementById('spinBtn');
+            spinBtn.disabled = true;
+            document.getElementById('statusHint').textContent = 'הגלגל מסתובב... בהצלחה!';
+
+            // חישוב זווית יעד אקראית (לפחות 5-8 סיבובים מלאים)
+            const extraSpins = (5 + Math.random() * 3) * 2 * Math.PI;
+            const randomOffset = Math.random() * 2 * Math.PI;
+            const startRotation = state.currentRotation;
+            const targetRotation = startRotation + extraSpins + randomOffset;
+            const duration = 4200; // 4.2 שניות
+            const startTime = performance.now();
+
+            let lastSectorIndex = -1;
+            const pointerEl = document.getElementById('wheelPointer');
+
+            function animateSpin(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // פונקציית האטה פיזיקלית חלקה (Cubic Ease-Out)
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                state.currentRotation = startRotation + (targetRotation - startRotation) * easeOut;
+
+                drawWheel(state.currentRotation);
+
+                // זיהוי מעבר גזרה מתחת למחוג (המחוג נמצא למעלה ב-270 מעלות = 1.5 * PI)
+                const pointerAngle = (1.5 * Math.PI - (state.currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+                const currentSectorIndex = Math.floor(pointerAngle / arcSize) % numSectors;
+
+                if (currentSectorIndex !== lastSectorIndex) {
+                    lastSectorIndex = currentSectorIndex;
+                    // אפקט קול ורטט מחוג
+                    const speedRatio = 1 - progress;
+                    playTickSound(0.85 + speedRatio * 0.4);
+                    pointerEl.classList.add('pointer-tick');
+                    setTimeout(() => pointerEl.classList.remove('pointer-tick'), 60);
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateSpin);
+                } else {
+                    state.isSpinning = false;
+                    spinBtn.disabled = false;
+                    handleLanding(currentSectorIndex);
+                }
+            }
+
+            requestAnimationFrame(animateSpin);
+        }
+
+        function handleLanding(sectorIndex) {
+            const landedCat = categories[sectorIndex];
+            document.getElementById('statusHint').textContent = `הגלגל נעצר על: ${landedCat.label}!`;
+
+            // אם נחת על בונוס מסתורי, בוחרים קטגוריית שאלות אקראית ומכפילים ניקוד
+            if (landedCat.id === 'bonus') {
+                state.isBonusTurn = true;
+                const realCats = ['queue', 'stack', 'recursion', 'bigo', 'tracing'];
+                const randomRealId = realCats[Math.floor(Math.random() * realCats.length)];
+                state.activeCategory = categories.find(c => c.id === randomRealId);
+            } else {
+                state.isBonusTurn = false;
+                state.activeCategory = landedCat;
+            }
+
+            setTimeout(() => openQuestionModal(), 450);
+        }
+
+        // ============================================================================
+        // 5. ניהול מודאל השאלות והמעקב (Question Modal & Code Trace Feedback)
+        // ============================================================================
+        function getNextQuestion(catId) {
+            const pool = questionBank[catId];
+            let used = state.usedQuestionIndices[catId];
+            if (used.length >= pool.length) {
+                used = [];
+                state.usedQuestionIndices[catId] = [];
+            }
+            const availableIndices = pool.map((_, idx) => idx).filter(idx => !used.includes(idx));
+            const chosenIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+            used.push(chosenIdx);
+            return pool[chosenIdx];
+        }
+
+        function openQuestionModal() {
+            const cat = state.activeCategory;
+            const qObj = getNextQuestion(cat.id);
+            state.activeQuestion = qObj;
+
+            // עדכון תגיות כותרת
+            const catBadge = document.getElementById('modalCategoryBadge');
+            catBadge.textContent = state.isBonusTurn ? `🌟 בונוס מסתורי: ${cat.label}` : cat.label;
+            
+            const ptsBadge = document.getElementById('modalPointsBadge');
+            ptsBadge.textContent = state.isBonusTurn ? '+200 נקודות (כפול!)' : '+100 נקודות';
+
+            // טקסט שאלה
+            document.getElementById('questionText').textContent = qObj.question;
+
+            // הצגת בלוק קוד אם קיים
+            const codeContainer = document.getElementById('codeBlockContainer');
+            if (qObj.code) {
+                codeContainer.classList.remove('hidden');
+                document.getElementById('questionCode').textContent = qObj.code;
+            } else {
+                codeContainer.classList.add('hidden');
+            }
+
+            // בניית 4 אפשרויות תשובה
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+            const letters = ['א', 'ב', 'ג', 'ד'];
+
+            qObj.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn w-full text-right p-3.5 sm:p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/90 border border-slate-600/80 text-slate-100 font-medium transition flex items-center gap-3 cursor-pointer';
+                btn.innerHTML = `
+                    <span class="w-8 h-8 rounded-xl bg-slate-900 border border-slate-600 flex items-center justify-center font-bold text-cyan-400 shrink-0">${letters[idx]}</span>
+                    <span class="text-sm sm:text-base">${optText}</span>
+                `;
+                btn.onclick = () => submitAnswer(idx, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            // הסתרת אזור משוב קודם
+            document.getElementById('feedbackSection').classList.add('hidden');
+
+            // הצגת המודאל
+            const modal = document.getElementById('questionModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function submitAnswer(selectedIndex, clickedBtn) {
+            const qObj = state.activeQuestion;
+            const catId = state.activeCategory.id;
+            const isCorrect = (selectedIndex === qObj.correctIndex);
+
+            // נעילת כל הכפתורים וצביעת התשובה הנכונה/שגויה
+            const allBtns = document.querySelectorAll('.option-btn');
+            allBtns.forEach((btn, idx) => {
+                btn.disabled = true;
+                btn.classList.remove('hover:bg-slate-700/90', 'cursor-pointer');
+                if (idx === qObj.correctIndex) {
+                    btn.classList.remove('bg-slate-800/80', 'border-slate-600/80');
+                    btn.classList.add('bg-emerald-950/80', 'border-emerald-400', 'text-emerald-100');
+                } else if (idx === selectedIndex && !isCorrect) {
+                    btn.classList.remove('bg-slate-800/80', 'border-slate-600/80');
+                    btn.classList.add('bg-rose-950/80', 'border-rose-500', 'text-rose-100');
+                } else {
+                    btn.classList.add('opacity-50');
+                }
+            });
+
+            // עדכון סטטיסטיקות וניקוד
+            state.stats[catId].total++;
+            const banner = document.getElementById('feedbackBanner');
+            const icon = document.getElementById('feedbackIcon');
+            const title = document.getElementById('feedbackTitle');
+            const subtitle = document.getElementById('feedbackSubtitle');
+
+            if (isCorrect) {
+                state.stats[catId].correct++;
+                state.streak++;
+                const earned = (state.isBonusTurn ? 200 : 100) + (state.streak > 1 ? (state.streak - 1) * 20 : 0);
+                state.score += earned;
+
+                banner.className = 'p-4 rounded-2xl mb-4 flex items-center gap-3 bg-emerald-500/20 border border-emerald-400/50 text-emerald-200';
+                icon.textContent = '🎉';
+                title.textContent = `תשובה מדויקת! זכית ב-${earned} נקודות`;
+                subtitle.textContent = state.streak > 1 ? `רצף של ${state.streak} תשובות נכונות ברציפות! 🔥` : 'מעולה! בואו נוודא את ההבנה בעזרת טבלת המעקב:';
+
+                playWinSound();
+                playConfettiSweep();
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: state.isBonusTurn ? 130 : 75,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: ['#06B6D4', '#A855F7', '#F59E0B', '#10B981']
+                    });
+                }
+            } else {
+                state.streak = 0;
+                banner.className = 'p-4 rounded-2xl mb-4 flex items-center gap-3 bg-rose-500/20 border border-rose-500/50 text-rose-200';
+                icon.textContent = '💡';
+                title.textContent = 'לא נורא! טעות היא הזדמנות ללמידה';
+                subtitle.textContent = 'עקבו אחר שלבי ההרצה למטה כדי לראות היכן חל השינוי בזיכרון:';
+                playErrorSound();
+            }
+
+            // הצגת טבלת המעקב המפורטת (Code Trace)
+            const traceContainer = document.getElementById('codeTraceContent');
+            traceContainer.innerHTML = qObj.traceSteps.map(step => `
+                <div class="p-2.5 rounded-xl bg-slate-800/70 border-r-2 border-cyan-400">${step}</div>
+            `).join('');
+
+            document.getElementById('feedbackSection').classList.remove('hidden');
+            updateUIStats();
+        }
+
+        function closeQuestionModal() {
+            const modal = document.getElementById('questionModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.getElementById('statusHint').textContent = 'מוכנים לסיבוב נוסף? לחצו על "סובב את הגלגל!"';
+        }
+
+        // ============================================================================
+        // 6. עדכון ממשק המשתמש ותצוגת מורה (UI & Teacher Dashboard)
+        // ============================================================================
+        function updateUIStats() {
+            document.getElementById('scoreDisplay').textContent = state.score;
+            document.getElementById('streakDisplay').textContent = state.streak;
+
+            let totalAnswered = 0;
+            let totalCorrect = 0;
+            let bestCat = { name: '-', rate: -1 };
+            let worstCat = { name: '-', rate: 2 };
+
+            const catNames = {
+                queue: 'תור (FIFO)',
+                stack: 'מחסנית (LIFO)',
+                recursion: 'רקורסיה',
+                bigo: 'סיבוכיות Big-O',
+                tracing: 'מעקב קוד'
+            };
+
+            Object.keys(state.stats).forEach(key => {
+                const s = state.stats[key];
+                const el = document.getElementById(`stat-${key}`);
+                if (el) el.textContent = `${s.correct}/${s.total} הצלחות`;
+
+                totalAnswered += s.total;
+                totalCorrect += s.correct;
+
+                if (s.total > 0) {
+                    const rate = s.correct / s.total;
+                    if (rate > bestCat.rate) bestCat = { name: catNames[key], rate };
+                    if (rate < worstCat.rate) worstCat = { name: catNames[key], rate };
+                }
+            });
+
+            // עדכון נתוני דוח מורה
+            document.getElementById('td-total').textContent = totalAnswered;
+            const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+            document.getElementById('td-accuracy').textContent = `${accuracy}%`;
+            document.getElementById('td-strongest').textContent = bestCat.rate >= 0 ? bestCat.name : 'טרם נמדד';
+            document.getElementById('td-weakest').textContent = (worstCat.rate <= 1 && worstCat.rate < 1) ? worstCat.name : 'אין מוקד קושי';
+        }
+
+        function toggleTeacherDashboard() {
+            const modal = document.getElementById('teacherModal');
+            if (modal.classList.contains('hidden')) {
+                updateUIStats();
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function resetStats() {
+            state.score = 0;
+            state.streak = 0;
+            Object.keys(state.stats).forEach(k => {
+                state.stats[k] = { correct: 0, total: 0 };
+            });
+            updateUIStats();
+        }
