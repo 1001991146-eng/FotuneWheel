@@ -631,19 +631,19 @@ while (!temp.isEmpty()) {
     q.insert(temp.remove());
 }`,
                     options: [
-                        "[4, 2] (4 בראש התור)",
-                        "[2, 4] (2 בראש התור)",
-                        "[7, 9] (7 בראש התור)",
-                        "[4, 7, 2, 9] ללא שינוי"
+                        "1 2 3 4 (משמאל לימין)",
+                        "4 3 2 1 (משמאל לימין)",
+                        "1 2 3 (משמאל לימין)",
+                        "4 3 2 (משמאל לימין)"
                     ],
                     correctIndex: 0,
-                    explanation: "הפעולה מסננת ומשאירה בתור רק את המספרים הזוגיים תוך שמירה על סדר הופעתם המקורי (FIFO).",
+                    explanation: "מכיוון שההדפסה מתבצעת *לאחר* הקריאה הרקורסיבית, הספרות מודפסות בזמן החזרה ממחסנית הקריאות (מהספרה השמאלית ביותר לימנית).",
                     trace: [
-                        "1. איבר 4: זוגי -> נכנס ל-temp. כעת temp = [4].",
-                        "2. איבר 7: אי-זוגי -> נזרק.",
-                        "3. איבר 2: זוגי -> נכנס ל-temp. כעת temp = [4, 2].",
-                        "4. איבר 9: אי-זוגי -> נזרק.",
-                        "5. לולאה שנייה מעבירה מ-temp חזרה ל-q לפי סדר FIFO -> התור q הוא [4, 2]."
+                        "1. printDigits(1234) קוראת ל-printDigits(123) וממתינה להדפיס 4.",
+                        "2. printDigits(123) קוראת ל-printDigits(12) וממתינה להדפיס 3.",
+                        "3. printDigits(12) קוראת ל-printDigits(1) וממתינה להדפיס 2.",
+                        "4. printDigits(1) מגיעה לבסיס (1 < 10) -> מדפיסה 1.",
+                        "5. בחזרה לאחור: מודפס 2, לאחר מכן 3, ולבסוף 4 -> פלט (משמאל לימין): 1 2 3 4."
                     ]
                 }
             ],
@@ -1189,11 +1189,12 @@ System.out.println(s.pop() + s.pop());`,
                 const btn = document.createElement('button');
                 btn.className = 'option-btn text-right p-4 rounded-2xl bg-slate-800/85 hover:bg-slate-700/90 border border-slate-600/70 hover:border-cyan-400 text-slate-100 font-medium text-sm sm:text-base transition flex items-start gap-3 cursor-pointer shadow-md';
                 btn.dataset.correct = opt.isCorrect ? 'true' : 'false';
+                const isCodeOrNumbers = /^[0-9a-zA-Z\[\]\(\)\s,.\-+*/=<>&|!;"']+$/.test(opt.text.trim());
                 btn.innerHTML = `
                     <span class="w-7 h-7 rounded-lg bg-slate-900 text-cyan-400 font-bold text-xs flex items-center justify-center shrink-0 border border-cyan-500/30 mt-0.5">
                         ${letters[idx]}
                     </span>
-                    <span class="leading-snug">${opt.text}</span>
+                    <span dir="${isCodeOrNumbers ? 'ltr' : 'rtl'}" class="leading-snug ${isCodeOrNumbers ? 'code-font text-left w-full' : ''}">${opt.text}</span>
                 `;
                 btn.onclick = () => submitAnswer(btn, opt.isCorrect);
                 optionsContainer.appendChild(btn);
